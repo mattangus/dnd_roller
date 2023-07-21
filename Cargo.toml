@@ -10,3 +10,8 @@ yew = "0.20"
 yew-bootstrap = "0.5"
 rand = "0.8.5"
 getrandom = { version = "0.2", features = ["js"] }
+yew-plotly = "0.2.0"
+gloo = "0.8.1"
+chrono = "0.4.26"
+web-sys = "0.3.64"
+regex = "1.9.1"
