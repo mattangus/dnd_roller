@@ -81,6 +81,10 @@ impl DiceSet {
 
 type Comparator = fn(usize, usize) -> bool;
 
+fn less_than(a: usize, b: usize) -> bool {
+    return a < b;
+}
+
 #[derive(Clone, PartialEq)]
 struct Decision {
     operator: Comparator,
@@ -100,6 +104,17 @@ impl Rollable for Decision {
 
     fn max(&self) -> usize {
         return self.dice.max();
+    }
+}
+
+impl Decision {
+    fn empty() -> Decision {
+        return Decision {
+            operator: less_than,
+            decision_dice: DiceSet::empty(),
+            decision_value: 0,
+            dice: DiceSet::empty(),
+        };
     }
 }
 
@@ -132,15 +147,46 @@ struct DiceProps {
     die: UseStateHandle<DiceSet>,
 }
 
+#[derive(Clone, PartialEq, Properties)]
+struct DiceCallbackProps {
+    callback: Callback<DiceSet>,
+}
+#[derive(Clone, PartialEq, Properties)]
+struct DecisionCallbackProps {
+    callback: Callback<Decision>,
+}
+
+#[derive(Clone, PartialEq, Properties)]
+struct DiceSetProps {
+    die: UseStateHandle<Vec<DiceSet>>,
+}
+
+#[derive(Clone, PartialEq, Properties)]
+struct DecisionProps {
+    die: UseStateHandle<Decision>,
+}
+
+#[derive(Clone, PartialEq, Properties)]
+struct DecisionSetProps {
+    die: UseStateHandle<Vec<Decision>>,
+}
+
 fn get_valid_dice(dice: String) -> String {
+    log!("validating ", dice.clone());
     let mut ret = String::new();
     let mut has_d = false;
     for char in dice.chars() {
         if char.is_numeric() {
+            // log!("pushing", char.to_string());
             ret.push(char);
         } else if char == 'd' && !has_d && ret.len() > 0 {
+            // log!("pushing dice", char.to_string());
             ret.push(char);
             has_d = true;
+        } else if char == ',' && has_d {
+            // log!("pushing comma", char.to_string());
+            ret.push(char);
+            has_d = false;
         }
     }
 
@@ -149,37 +195,38 @@ fn get_valid_dice(dice: String) -> String {
 
 fn parse_dice(value: &String) -> DiceSet {
     let re = Regex::new(r"(?<num_dice>\d+)d(?<num_sides>\d+)").unwrap();
-    let caps = re.captures(&value);
+    let caps = re.find(&value);
     match caps {
         None => return DiceSet::empty(),
         Some(x) => {
-            let num_dice = x["num_dice"].parse::<usize>().unwrap();
-            let dice_sides = x["num_sides"].parse::<usize>().unwrap();
-            if dice_sides > 1 {
-                log!("parsing dice set with", num_dice, dice_sides);
-                return DiceSet {
-                    dice: vec![Dice::new(dice_sides); num_dice],
-                };
-            }
-            else {
-                return DiceSet::empty();
-            }
+            log!("found some");
+            // let num_dice = x["num_dice"].parse::<usize>().unwrap();
+            // let dice_sides = x["num_sides"].parse::<usize>().unwrap();
+            // if dice_sides > 1 {
+            //     log!("parsing dice set with", num_dice, dice_sides);
+            //     return DiceSet {
+            //         dice: vec![Dice::new(dice_sides); num_dice],
+            //     };
+            // } else {
+            //     return DiceSet::empty();
+            // }
+            return DiceSet::empty();
         }
     }
 }
 
 #[function_component]
-fn DiceTextBox(props: &DiceProps) -> Html {
+fn DiceTextBox(props: &DiceCallbackProps) -> Html {
     let value_label = use_state(String::default);
     let actual_value = (*value_label).clone();
 
     let validate = {
         let value_label = value_label.clone();
-        let dice_set = props.die.clone();
+        let callback = props.callback.clone();
         Callback::from(move |e: InputEvent| {
             let input: HtmlInputElement = e.target_unchecked_into();
             let valid_dice = get_valid_dice(input.value());
-            dice_set.set(parse_dice(&valid_dice));
+            callback.emit(parse_dice(&valid_dice));
             value_label.set(valid_dice);
         })
     };
@@ -197,16 +244,111 @@ fn DiceTextBox(props: &DiceProps) -> Html {
 }
 
 #[function_component]
-fn DicePicker(props: &DiceProps) -> Html {
+fn DecisionTextBox(props: &DecisionCallbackProps) -> Html {
+    // operator: Comparator,
+    // decision_dice: DiceSet,
+    // decision_value: usize,
+    // dice: DiceSet,
+    let decision_dice_text = use_state(String::default);
+    let decision_dice_value = (*decision_dice_text).clone();
+
+    let dice_text = use_state(String::default);
+    let dice_value = (*dice_text).clone();
+
+    let validate = {
+        let temp = decision_dice_value.clone();
+        move || {
+            log!("called validate");
+            let decision = parse_dice(&temp);
+            // let dice = parse_dice(&dice_value.clone());
+            // props.callback.emit();
+        }
+    };
+
+    let validate_decision = {
+        let decision_dice_text = decision_dice_text.clone();
+        let validate = validate.clone();
+        Callback::from(move |e: InputEvent| {
+            let input: HtmlInputElement = e.target_unchecked_into();
+            let valid_dice = get_valid_dice(input.value());
+            decision_dice_text.set(valid_dice);
+            validate();
+        })
+    };
+
+    let validate_dice = {
+        let dice_text = dice_text.clone();
+        let validate = validate.clone();
+        Callback::from(move |e: InputEvent| {
+            let input: HtmlInputElement = e.target_unchecked_into();
+            let valid_dice = get_valid_dice(input.value());
+            dice_text.set(valid_dice);
+            validate();
+        })
+    };
+
     return html!(
-        // <>
-        // <div class="input-group mb-3">
-        //     <input type="number" class="form-control text-end" placeholder="Number of Dice" />
-        //     <span class="input-group-text" id="basic-addon1">{"d"}</span>
-        //     <input type="number" class="form-control" placeholder="Sides of dice" />
-        // </div>
-        // </>
-        <DiceTextBox die={props.die.clone()}/>
+        <div class="input-group">
+            <FormControl
+                id="decision_dice"
+                ctype={FormControlType::Text}
+                class="mb-3"
+                placeholder="1d20"
+                value={decision_dice_value}
+                oninput={validate_decision}
+            />
+            <FormControl
+                id="dice"
+                ctype={FormControlType::Text}
+                class="mb-3"
+                placeholder="1d8,1d6"
+                value={dice_value}
+                oninput={validate_dice}
+            />
+        </div>
+    );
+}
+
+#[function_component]
+fn DicePicker(props: &DecisionSetProps) -> Html {
+    let die = props.die.clone();
+
+    let all_dice = die
+        .iter()
+        .enumerate()
+        .map(|(i, d)| {
+            let callback = {
+                let die = die.clone();
+
+                Callback::from(move |v| {
+                    let mut cur = (*die).clone();
+                    cur[i] = v;
+                    die.set(cur);
+                })
+            };
+
+            return html!(
+                <DecisionTextBox callback={callback}/>
+            );
+        })
+        .collect::<Html>();
+
+    let add_dice = {
+        let die = die.clone();
+        Callback::from(move |_| {
+            let mut new_vec = (*die).clone();
+            new_vec.push(Decision::empty());
+            die.set(new_vec);
+        })
+    };
+
+    return html!(
+        <>
+        <div class="input-group mb-3">
+            <Button class="btn btn-primary" onclick={add_dice}>{"+"}</Button>
+        </div>
+        {all_dice}
+        </>
     );
 }
 
@@ -214,31 +356,15 @@ fn DicePicker(props: &DiceProps) -> Html {
 fn App() -> Html {
     let hist: UseStateHandle<Vec<f64>> = use_state(|| vec![]);
     let latency = use_state(|| 0.0);
-    let value = use_state(String::default);
-    let dice: UseStateHandle<DiceSet> = use_state(|| DiceSet::empty());
-    // let dice: DiceSet = DiceSet {
-    //     dice: Vec::from([Dice::new(10), Dice::new(10), Dice::new(10)]),
-    // };
-    // let dice = Decision {
-    //     operator: |a, b| a >= b,
-    //     decision_dice: DiceSet {
-    //         dice: vec![Dice::new(20)],
-    //     },
-    //     decision_value: 10,
-    //     dice: DiceSet {
-    //         dice: vec![Dice::new(10), Dice::new(10), Dice::new(10)],
-    //     },
-    // };
+    let dice: UseStateHandle<Vec<Decision>> = use_state(|| vec![]);
 
     let roll = {
         let hist = hist.clone();
         let latency = latency.clone();
-        let value = value.clone();
         let dice = dice.clone();
         Callback::from(move |_| {
-            log!("text box value", (*value).clone());
             let start = Local::now();
-            hist.set(run_sim(&*dice, 1000000));
+            hist.set(run_sim(&(*dice)[0], 1000000));
             let end = Local::now();
             let dur = end - start;
             latency.set(dur.num_milliseconds() as f32 / 1000.0);
