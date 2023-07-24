@@ -1,10 +1,14 @@
+use std::collections::HashMap;
+use std::slice::Iter;
+use std::str::FromStr;
 use std::vec;
 
+use chrono::format::Item;
 use chrono::prelude::*;
 use gloo::console::log;
 use rand::distributions::{Distribution, Uniform};
 use regex::Regex;
-use web_sys::{EventTarget, HtmlInputElement};
+use web_sys::{EventTarget, HtmlTextAreaElement, HtmlSelectElement, HtmlInputElement};
 use yew::prelude::*;
 use yew::{html, Html, InputEvent};
 use yew_bootstrap::component::form::*;
@@ -16,8 +20,9 @@ use yew_plotly::plotly::{Layout, Plot, Scatter};
 use yew_plotly::Plotly;
 
 pub trait Rollable {
-    fn roll(&self) -> usize;
+    fn roll(&self, verbose: bool) -> usize;
     fn max(&self) -> usize;
+    fn to_string(&self) -> String;
 }
 
 #[derive(Clone, PartialEq)]
@@ -32,14 +37,22 @@ struct DiceSet {
 }
 
 impl Rollable for Dice {
-    fn roll(&self) -> usize {
+    fn roll(&self, verbose: bool) -> usize {
         let mut rng: rand::rngs::ThreadRng = rand::thread_rng();
-        return self.distribution.sample(&mut rng);
+        let sample = self.distribution.sample(&mut rng);
+        if verbose {
+            log!(self.to_string(), "rolled a", sample);
+        }
+        return sample;
         // return 0;
     }
 
     fn max(&self) -> usize {
         return self.sides;
+    }
+
+    fn to_string(&self) -> String {
+        return format!("d{}", self.sides);
     }
 }
 
@@ -54,10 +67,13 @@ impl Dice {
 }
 
 impl Rollable for DiceSet {
-    fn roll(&self) -> usize {
+    fn roll(&self, verbose: bool) -> usize {
         let mut value: usize = 0;
         for die in &self.dice {
-            value += die.roll();
+            value += die.roll(verbose);
+        }
+        if verbose {
+            log!(self.to_string(), "total value", value);
         }
 
         return value;
@@ -71,6 +87,40 @@ impl Rollable for DiceSet {
 
         return value;
     }
+
+    fn to_string(&self) -> String {
+        let mut sides_to_count = HashMap::new();
+
+        for item in &self.dice {
+            let count = sides_to_count.entry(item.sides).or_insert(0);
+            *count += 1;
+        }
+
+        let values: Vec<String> = sides_to_count
+            .iter()
+            .map(|(sides, count)| {
+                return format!("{}d{}", count, sides);
+            })
+            .collect();
+
+        if values.len() == 0 {
+            return "<empty DiceSet>".to_string();
+        }
+
+        return values.join(",");
+    }
+}
+
+impl FromIterator<DiceSet> for DiceSet {
+    fn from_iter<T: IntoIterator<Item = DiceSet>>(iter: T) -> Self {
+        let mut dice = Vec::new();
+
+        for item in iter {
+            dice.extend(item.dice);
+        }
+
+        return DiceSet { dice };
+    }
 }
 
 impl DiceSet {
@@ -79,25 +129,89 @@ impl DiceSet {
     }
 }
 
-type Comparator = fn(usize, usize) -> bool;
+#[derive(Clone, PartialEq)]
+enum Comparison {
+    LessThan,
+    GreaterThan,
+    LessEqual,
+    GreaterEqual,
+    Equal,
+}
 
-fn less_than(a: usize, b: usize) -> bool {
-    return a < b;
+impl FromStr for Comparison {
+    type Err = ();
+
+    fn from_str(input: &str) -> Result<Comparison, Self::Err> {
+        match input {
+            "<" => Ok(Comparison::LessThan),
+            ">" => Ok(Comparison::GreaterThan),
+            "<=" => Ok(Comparison::LessEqual),
+            ">=" => Ok(Comparison::GreaterEqual),
+            "=" => Ok(Comparison::Equal),
+            "==" => Ok(Comparison::Equal),
+            _ => Err(()),
+        }
+    }
+}
+
+impl ToString for Comparison {
+    fn to_string(&self) -> String {
+        let op = match self {
+            Comparison::LessEqual => "<=",
+            Comparison::GreaterEqual => ">=",
+            Comparison::LessThan => "<",
+            Comparison::GreaterThan => ">",
+            Comparison::Equal => "==",
+        };
+
+        return op.to_string();
+    }
+}
+
+impl Comparison {
+    fn compare(&self, a: usize, b: usize) -> bool {
+        match self {
+            Comparison::LessEqual => return a <= b,
+            Comparison::GreaterEqual => return a >= b,
+            Comparison::LessThan => return a < b,
+            Comparison::GreaterThan => return a > b,
+            Comparison::Equal => return a == b,
+        }
+    }
+    pub fn iter() -> Iter<'static, Comparison> {
+        static DIRECTIONS: [Comparison; 5] = [
+            Comparison::LessEqual,
+            Comparison::GreaterEqual,
+            Comparison::LessThan,
+            Comparison::GreaterThan,
+            Comparison::Equal,
+        ];
+        DIRECTIONS.iter()
+    }
 }
 
 #[derive(Clone, PartialEq)]
 struct Decision {
-    operator: Comparator,
+    operator: Comparison,
     decision_dice: DiceSet,
     decision_value: usize,
     dice: DiceSet,
 }
 
+#[derive(Clone, PartialEq)]
+struct DecisionSet {
+    decisions: Vec<Decision>
+}
+
 impl Rollable for Decision {
-    fn roll(&self) -> usize {
-        let decision_roll = self.decision_dice.roll();
-        if (self.operator)(decision_roll, self.decision_value) {
-            return self.dice.roll();
+    fn roll(&self, verbose: bool) -> usize {
+        let decision_roll = self.decision_dice.roll(verbose);
+        let should_roll = self.operator.compare(decision_roll, self.decision_value);
+        if verbose {
+            log!(self.to_string(), "should roll dice", should_roll);
+        }
+        if  should_roll {
+            return self.dice.roll(verbose);
         }
         return 0;
     }
@@ -105,12 +219,22 @@ impl Rollable for Decision {
     fn max(&self) -> usize {
         return self.dice.max();
     }
+
+    fn to_string(&self) -> String {
+        return format!(
+            "if {} {} {} then {}",
+            self.decision_dice.to_string(),
+            self.operator.to_string(),
+            self.decision_value,
+            self.dice.to_string()
+        );
+    }
 }
 
 impl Decision {
     fn empty() -> Decision {
         return Decision {
-            operator: less_than,
+            operator: Comparison::LessThan,
             decision_dice: DiceSet::empty(),
             decision_value: 0,
             dice: DiceSet::empty(),
@@ -118,10 +242,54 @@ impl Decision {
     }
 }
 
+impl Rollable for DecisionSet {
+    fn roll(&self, verbose: bool) -> usize {
+        let mut value: usize = 0;
+        for die in &self.decisions {
+            value += die.roll(verbose);
+        }
+        if verbose {
+            log!(self.to_string(), "total value", value);
+        }
+
+        return value;
+    }
+
+    fn max(&self) -> usize {
+        let mut value: usize = 0;
+        for die in &self.decisions {
+            value += die.max();
+        }
+
+        return value;
+    }
+
+    fn to_string(&self) -> String {
+
+        let values: Vec<String> = self.decisions
+            .iter()
+            .map(|d| {
+                return d.to_string();
+            })
+            .collect();
+
+        if values.len() == 0 {
+            return "<empty DecisionSet>".to_string();
+        }
+
+        return values.join(",");
+    }
+}
+
 fn run_sim(dice: &dyn Rollable, iters: i32) -> Vec<f64> {
-    let mut hist = vec![0.0; dice.max()];
+    let mut max = dice.max();
+    if max == 0 {
+        max = 1;
+    }
+    let mut hist = vec![0.0; max];
+    log!("rolling", dice.to_string(), "with max", max);
     for _ in 0..iters {
-        let roll = dice.roll();
+        let roll = dice.roll(false);
         hist[roll] += 1.0;
     }
 
@@ -172,7 +340,6 @@ struct DecisionSetProps {
 }
 
 fn get_valid_dice(dice: String) -> String {
-    log!("validating ", dice.clone());
     let mut ret = String::new();
     let mut has_d = false;
     for char in dice.chars() {
@@ -195,24 +362,24 @@ fn get_valid_dice(dice: String) -> String {
 
 fn parse_dice(value: &String) -> DiceSet {
     let re = Regex::new(r"(?<num_dice>\d+)d(?<num_sides>\d+)").unwrap();
-    let caps = re.find(&value);
-    match caps {
-        None => return DiceSet::empty(),
-        Some(x) => {
-            log!("found some");
-            // let num_dice = x["num_dice"].parse::<usize>().unwrap();
-            // let dice_sides = x["num_sides"].parse::<usize>().unwrap();
-            // if dice_sides > 1 {
-            //     log!("parsing dice set with", num_dice, dice_sides);
-            //     return DiceSet {
-            //         dice: vec![Dice::new(dice_sides); num_dice],
-            //     };
-            // } else {
-            //     return DiceSet::empty();
-            // }
-            return DiceSet::empty();
-        }
-    }
+    let caps = re
+        .captures_iter(&value)
+        .map(|x| {
+            let num_dice = x["num_dice"].parse::<usize>().unwrap();
+            let dice_sides = x["num_sides"].parse::<usize>().unwrap();
+            if dice_sides > 1 {
+                return DiceSet {
+                    dice: vec![Dice::new(dice_sides); num_dice],
+                };
+            } else {
+                return DiceSet::empty();
+            }
+        })
+        .collect::<DiceSet>();
+
+    log!("parsed", value.clone(), "into", caps.to_string());
+
+    return caps;
 }
 
 #[function_component]
@@ -255,36 +422,94 @@ fn DecisionTextBox(props: &DecisionCallbackProps) -> Html {
     let dice_text = use_state(String::default);
     let dice_value = (*dice_text).clone();
 
+    let decision_value_text = use_state(|| 0 as usize);
+    let decision_value = (*decision_value_text).clone();
+    
+    let operator_text = use_state(|| Comparison::GreaterEqual.to_string());
+    let operator_value = (*operator_text).clone();
+
     let validate = {
-        let temp = decision_dice_value.clone();
-        move || {
-            log!("called validate");
-            let decision = parse_dice(&temp);
-            // let dice = parse_dice(&dice_value.clone());
-            // props.callback.emit();
+        let callback = props.callback.clone();
+        move |dice_value: &String, decision_dice_value: &String, decision_value: &usize, operator_value: &String| {
+            let decision_dice = parse_dice(decision_dice_value);
+            let dice = parse_dice(dice_value);
+            let decision = Decision {
+                operator: Comparison::from_str(operator_value).unwrap(),
+                decision_dice,
+                decision_value: *decision_value,
+                dice
+            };
+            callback.emit(decision);
         }
     };
 
     let validate_decision = {
         let decision_dice_text = decision_dice_text.clone();
         let validate = validate.clone();
+        let dice_value = dice_value.clone();
+        let decision_value = decision_value.clone();
+        let operator_value = operator_value.clone();
         Callback::from(move |e: InputEvent| {
             let input: HtmlInputElement = e.target_unchecked_into();
             let valid_dice = get_valid_dice(input.value());
+            validate(&dice_value, &valid_dice, &decision_value, &operator_value);
             decision_dice_text.set(valid_dice);
-            validate();
         })
     };
 
     let validate_dice = {
         let dice_text = dice_text.clone();
         let validate = validate.clone();
+        let decision_dice_value = decision_dice_value.clone();
+        let decision_value = decision_value.clone();
+        let operator_value = operator_value.clone();
         Callback::from(move |e: InputEvent| {
             let input: HtmlInputElement = e.target_unchecked_into();
             let valid_dice = get_valid_dice(input.value());
+            validate(&valid_dice, &decision_dice_value, &decision_value, &operator_value);
             dice_text.set(valid_dice);
-            validate();
         })
+    };
+
+    let update_decision_value = {
+        let decision_value_text = decision_value_text.clone();
+        let validate = validate.clone();
+        let decision_dice_value = decision_dice_value.clone();
+        let operator_value = operator_value.clone();
+        let dice_value = dice_value.clone();
+        Callback::from(move |e: InputEvent| {
+            let input_elem: HtmlInputElement = e.target_unchecked_into();
+            let input = input_elem.value();
+            let mut result = 0;
+            if input.len() > 0 {
+                result = input.parse().unwrap();
+            }
+            validate(&dice_value, &decision_dice_value, &result, &operator_value);
+            decision_value_text.set(result);
+        })
+    };
+
+    let update_comparison = {
+        let operator_text = operator_text.clone();
+        let validate = validate.clone();
+        let decision_value = decision_value.clone();
+        let decision_dice_value = decision_dice_value.clone();
+        let dice_value = dice_value.clone();
+        Callback::from(move |e: Event| {
+            let input_elem: HtmlSelectElement = e.target_unchecked_into();
+            let input = input_elem.value();
+            validate(&dice_value, &decision_dice_value, &decision_value, &input);
+            operator_text.set(input);
+        })
+    };
+
+    let select_options = {
+        let operator_text = operator_text.clone();
+        Comparison::iter().enumerate().map(move |(i, v)| {
+            return html!(
+                <SelectOption key={i} label={v.to_string()} selected={*operator_text == v.to_string()} value={v.to_string()}/>
+            );
+        }).collect::<Html>()
     };
 
     return html!(
@@ -296,6 +521,23 @@ fn DecisionTextBox(props: &DecisionCallbackProps) -> Html {
                 placeholder="1d20"
                 value={decision_dice_value}
                 oninput={validate_decision}
+            />
+            <FormControl
+                id="input-select1"
+                ctype={ FormControlType::Select}
+                class="mb-3"
+                // oninput={update_comparison}
+                onchange={update_comparison}
+            >
+                {select_options}
+            </FormControl>
+            <FormControl
+                id="decision_value"
+                ctype={FormControlType::Number { min: Some(0), max: None }}
+                class="mb-3"
+                placeholder="1d8,1d6"
+                value={decision_value.to_string()}
+                oninput={update_decision_value}
             />
             <FormControl
                 id="dice"
@@ -342,6 +584,7 @@ fn DicePicker(props: &DecisionSetProps) -> Html {
         })
     };
 
+    log!("DicePicker num die", die.len());
     return html!(
         <>
         <div class="input-group mb-3">
@@ -364,6 +607,8 @@ fn App() -> Html {
         let dice = dice.clone();
         Callback::from(move |_| {
             let start = Local::now();
+
+            log!("roll num die", (*dice).len());
             hist.set(run_sim(&(*dice)[0], 1000000));
             let end = Local::now();
             let dur = end - start;
@@ -390,6 +635,16 @@ fn App() -> Html {
     for (idx, v) in hist.iter().enumerate() {
         mean += idx as f64 * v;
     }
+
+    log!("App num die", dice.len());
+    let temp = dice
+        .iter()
+        .map(|v| {
+            return v.to_string();
+        })
+        .collect::<Vec<String>>()
+        .join("\n");
+    log!("app dice", temp);
 
     return html! {
         <Container size={ContainerSize::Large} fluid={ false }>
