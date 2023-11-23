@@ -1,25 +1,10 @@
 import React, { ChangeEvent, ChangeEventHandler, ReactEventHandler } from 'react';
 import './App.css';
-import init, { get_histogram, get_valid_dice } from "dice-lib";
+import init, * as dice_lib from "dice_lib";
 import * as RBS from "react-bootstrap";
 import { useHookstate, State } from '@hookstate/core';
 import 'bootstrap/dist/css/bootstrap.css';
 import Plot from 'react-plotly.js';
-
-enum Comparison {
-  LessThan = "<",
-  GreaterThan = ">",
-  LessEqual = "<=",
-  GreaterEqual = ">=",
-  Equal = "=",
-}
-
-interface Decision {
-  decisionDiceText: string;
-  diceText: string;
-  decisionValue: number;
-  operator: Comparison;
-}
 
 function getEnumKeys<
     T extends string,
@@ -28,24 +13,26 @@ function getEnumKeys<
     return Object.keys(enumVariable) as Array<T>;
 }
 
-function DiceTextBox(props: { diceText: State<string> }) {
+function DiceTextBox(props: { dice: State<dice_lib.DiceSet> }) {
 
-  const diceText = useHookstate(props.diceText);
+  const dice = useHookstate(props.dice);
 
   const validate = (e: React.ChangeEvent<HTMLInputElement>) => {
-    diceText.set(get_valid_dice(e.target.value))
+    const valid = dice_lib.get_valid_dice(e.target.value);
+    const parsed = dice_lib.DiceSet.from_string(valid);
+    dice.set(parsed);
   };
 
   return <RBS.Form.Control
     className="mb-3"
     type="text"
     placeholder="1d10"
-    value={diceText.get()}
+    value={dice.get().to_str()}
     onChange={validate}
   />
 }
 
-function DecisionTextBox(props: { decision: State<Decision> }) {
+function DecisionTextBox(props: { decision: State<dice_lib.Decision> }) {
   const decision = useHookstate(props.decision);
 
   const updateComparison = (e: ChangeEvent<HTMLSelectElement>) => {
@@ -53,40 +40,29 @@ function DecisionTextBox(props: { decision: State<Decision> }) {
     decision.operator.set(value as any);
   };
 
+  const updateDecisionValue = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = Number(e.target.value);
+    decision.decision_value.set(value);
+  };
+
+
   return (
   <div className="input-group">
-    <DiceTextBox diceText={decision.decisionDiceText}></DiceTextBox>
+    <DiceTextBox dice={decision.decision_dice}></DiceTextBox>
     <RBS.Form.Select onChange={updateComparison} value={decision.operator.get()}>
-    {getEnumKeys(Comparison).map((key, index) => (
-        <option key={index} value={Comparison[key]}>
-          {Comparison[key]}
+    {getEnumKeys(dice_lib.Comparison).map((key, index) => (
+        <option key={index} value={dice_lib.Comparison[key]}>
+          {dice_lib.Comparison[key]}
         </option>
       ))}
     </RBS.Form.Select>
-    {/* <RBS.Form.Control
-        ctype={ RBS.Form.ControlType::Select}
-        class="mb-3"
-        // oninput={update_comparison}
-      onchange={update_comparison}
-    >
-      {select_options}
-    </RBS.Form.Control>
     <RBS.Form.Control
-      id="decision_value"
-      ctype={RBS.Form.ControlType:: Number { min: Some(0), max: None
-}}
-class="mb-3"
-placeholder = "1d8,1d6"
-value = { decision_value.to_string() }
-oninput = { update_decision_value }
-  />
-  <RBS.Form.Control
-    ctype={RBS.Form.ControlType:: Text}
-    class="mb-3"
-    placeholder="1d8,1d6"
-    value={dice_value}
-    oninput={validate_dice}
-  />*/}
+      type="number"
+      className="mb-3"
+      value={ decision.decision_value.get() }
+      onChange={ updateDecisionValue }
+    />
+    <DiceTextBox dice={decision.dice}></DiceTextBox>
   </div > 
   );
 
@@ -96,12 +72,17 @@ function App() {
   init();
 
   const dice = useHookstate("");
-  const decision = useHookstate({
-    decisionDiceText: "",
-    decisionValue: 0,
-    operator: Comparison.GreaterThan,
-    diceText: ""
-  } as Decision)
+  const decision = useHookstate(new dice_lib.Decision(
+    dice_lib.Comparison.GreaterEqual,
+    dice_lib.DiceSet.empty(),
+    12,
+    dice_lib.DiceSet.empty()
+  ));
+  //   decisionDiceText: "1d20",
+  //   decisionValue: 12,
+  //   operator: dice_lib.Comparison.GreaterThan,
+  //   diceText: ""
+  // } as Decision)
   const hist = useHookstate([] as number[]);
   document.documentElement.setAttribute("data-bs-theme", "dark");
 
@@ -114,7 +95,7 @@ function App() {
           <RBS.Button onClick={v => {
             console.time('doSomething');
             console.log(dice)
-            hist.set(Array.from(get_histogram(dice.get(), 1000000)));
+            hist.set(Array.from(dice_lib.get_histogram(dice.get(), 1000000)));
             console.timeEnd('doSomething');
           }}>Run</RBS.Button>
         </RBS.Form.Group>

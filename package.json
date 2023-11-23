@@ -12,7 +12,7 @@
     "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15",
     "bootstrap": "^5.3.2",
-    "dice-lib": "file:dice-lib/pkg",
+    "dice_lib": "file:./dice_lib/pkg",
     "plotly.js": "^2.27.1",
     "react": "^18.2.0",
     "react-bootstrap": "^2.9.1",
@@ -25,7 +25,7 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "build:wasm": "cd dice-lib && wasm-pack build --target web --out-dir pkg",
+    "build:wasm": "cd dice_lib && wasm-pack build --target web --out-dir pkg",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
