@@ -197,6 +197,7 @@ impl Decision {
         decision_dice: DiceSet,
         decision_value: usize,
         dice: DiceSet) -> Decision {
+            log!("creating decision", operator.clone());
             return Decision {
                 operator: operator,
                 decision_dice: decision_dice,
@@ -434,7 +435,12 @@ pub fn run_sim(dice: &dyn Rollable, iters: i32) -> Vec<f64> {
     }
 
     return hist;
-} 
+}
+
+#[wasm_bindgen]
+pub fn run_sim_decision(decision: Decision, iters: i32) -> Vec<f64> {
+    return run_sim(&decision, iters);
+}
 
 #[wasm_bindgen]
 pub fn get_valid_dice(dice: String) -> String {
@@ -458,8 +464,8 @@ pub fn get_valid_dice(dice: String) -> String {
     return ret;
 }
 
-
-pub fn parse_dice(value: &String) -> DiceSet {
+#[wasm_bindgen]
+pub fn parse_dice(value: String) -> DiceSet {
     let re = Regex::new(r"(?<num_dice>\d+)d(?<num_sides>\d+)").unwrap();
     let caps = re
         .captures_iter(&value)
@@ -483,6 +489,6 @@ pub fn parse_dice(value: &String) -> DiceSet {
 
 #[wasm_bindgen]
 pub fn get_histogram(dice_str: String, iters: i32) -> Vec<f64> {
-    let dice = parse_dice(&dice_str);
+    let dice = parse_dice(dice_str);
     return run_sim(&dice, iters);
 }

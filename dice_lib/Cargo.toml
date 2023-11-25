@@ -10,6 +10,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 gloo = "0.10.0"
+js-sys = "0.3.65"
 rand = "0.8.5"
 regex = "1.10.2"
 wasm-bindgen = "0.2.78"

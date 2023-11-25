@@ -1,6 +1,5 @@
 {
     "rust-analyzer.linkedProjects": [
-        "./wasm-lib/Cargo.toml",
-        "./wasm-lib/Cargo.toml"
+        "./dice_lib/Cargo.toml",
     ]
 }

@@ -49,6 +49,7 @@ name = "dice_lib"
 version = "0.1.0"
 dependencies = [
  "gloo",
+ "js-sys",
  "rand",
  "regex",
  "wasm-bindgen",
