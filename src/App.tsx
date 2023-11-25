@@ -1,13 +1,12 @@
-import React, { ChangeEvent, ChangeEventHandler, ReactEventHandler, useEffect, useLayoutEffect, useRef } from 'react';
+import React, { ChangeEvent, useLayoutEffect, useRef } from 'react';
 import './App.css';
 import init, * as dice_lib from "dice_lib";
 import * as RBS from "react-bootstrap";
 import { useHookstate, State, none } from '@hookstate/core';
 import 'bootstrap/dist/css/bootstrap.css';
 import Plot from 'react-plotly.js';
-import { ScatterData, PlotType, Layout } from "plotly.js";
+import { PlotType } from "plotly.js";
 import { TrashFill } from 'react-bootstrap-icons';
-import { type } from 'os';
 
 interface DecisionText {
   operator: dice_lib.Comparison
@@ -108,7 +107,7 @@ function DndRoller() {
     window.addEventListener("resize", updateSize);
     return () =>
       window.removeEventListener("resize", updateSize);
-  }, []);
+  });
 
   const parseAndRun = (dec: DecisionText) => {
     const parsed_decision = new dice_lib.Decision(
