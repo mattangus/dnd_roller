@@ -7,6 +7,28 @@ import 'bootstrap/dist/css/bootstrap.css';
 import Plot from 'react-plotly.js';
 import { PlotType } from "plotly.js";
 import { TrashFill } from 'react-bootstrap-icons';
+// import { wrap, releaseProxy } from "comlink";
+// import workerExports from './worker';
+
+// function makeWorkerApiAndCleanup() {
+//   // Here we create our worker and wrap it with comlink so we can interact with it
+//   const workerUrl = new URL('./worker', import.meta.url);
+//   console.log(workerUrl.href);
+//   const worker = new Worker(workerUrl,{
+//     type: "module"
+//   });
+//   const workerApi = wrap<typeof workerExports>(worker);
+
+//   // A cleanup function that releases the comlink proxy and terminates the worker
+//   const cleanup = () => {
+//     workerApi[releaseProxy]();
+//     worker.terminate();
+//   };
+
+//   const workerApiAndCleanup = { workerApi, cleanup };
+
+//   return workerApiAndCleanup;
+// }
 
 interface DecisionText {
   operator: dice_lib.Comparison
@@ -27,7 +49,7 @@ function DiceTextBox(props: { dice: State<string> }) {
   const dice = useHookstate(props.dice);
 
   const validate = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const valid = dice_lib.get_valid_dice(e.target.value);
+    const valid = dice_lib.parse_and_discard(e.target.value);
     dice.set(valid);
   };
 
@@ -93,6 +115,8 @@ function DndRoller() {
   document.documentElement.setAttribute("data-bs-theme", "dark");
   const plotContainerRef = useRef<HTMLDivElement | null>(null);
 
+  // const worker = makeWorkerApiAndCleanup();
+
   const updateSize = () => {
     const current = plotContainerRef.current;
     if (current) {
@@ -116,7 +140,8 @@ function DndRoller() {
       dec.decision_value,
       dice_lib.parse_dice(dec.dice)
     );
-    return dice_lib.run_sim_decision(parsed_decision, 100000);
+    return dice_lib.run_sim_decision(parsed_decision, 10000000);
+    // return worker.workerApi.run_sim_decision(parsed_decision, 10000000);
   };
 
   const data = hists.map((v, item) => {
@@ -156,13 +181,16 @@ function DndRoller() {
               }}>Add set</RBS.Button>
               <RBS.Button onClick={v => {
                 console.time('run sims');
-                let histValues: number[][] = [];
-                for (let i = 0; i < decisions.length; i++) {
-                  const element = decisions[i].get();
+                // let histValues: number[][] = [];
+                // for (let i = 0; i < decisions.length; i++) {
+                //   const element = decisions[i].get();
 
-                  histValues.push(Array.from(parseAndRun(element)));
-                }
-                hists.set(histValues);
+                //   // histValues.push(Array.from(parseAndRun(element)));
+                //   let res = parseAndRun(element).then((vals) => Array.from(vals));
+                // }
+                // const res = Promise.all(decisions.map((v) => parseAndRun(v.get()).then((vals) => Array.from(vals))));
+                const res = decisions.map((v) => Array.from(parseAndRun(v.get())));
+                hists.set(() => res);
                 console.timeEnd('run sims');
               }}>Run</RBS.Button>
             </RBS.ButtonGroup>
@@ -220,13 +248,14 @@ function DndRoller() {
 
 function App() {
   let wasm = init();
+  console.log("using concurrency %s", navigator.hardwareConcurrency);
 
-  let loaded = useHookstate(() => wasm.then((o) => true));
+  let wasLoaded = useHookstate(() => wasm.then((o) => dice_lib.initThreadPool(navigator.hardwareConcurrency)).then((o) => true));
 
-  if (loaded.promised)
-    return <h1>Loading</h1>
+  if (wasLoaded.promised)
+    return <h1>Loading wasm</h1>
 
-  return <DndRoller></DndRoller>
+  return <DndRoller />
 }
 
 export default App;

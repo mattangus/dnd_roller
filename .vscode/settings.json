@@ -1,5 +1,6 @@
 {
     "rust-analyzer.linkedProjects": [
         "./dice_lib/Cargo.toml",
+        "./dice_lib/Cargo.toml"
     ]
 }

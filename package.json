@@ -12,6 +12,7 @@
     "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15",
     "bootstrap": "^5.3.2",
+    "comlink": "^4.4.1",
     "dice_lib": "file:dice_lib/dist",
     "plotly.js": "^2.27.1",
     "react": "^18.2.0",
@@ -26,7 +27,7 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "build:wasm": "cd dice_lib && wasm-pack build --target web --out-dir dist && cd .. && rm node_modules -r || true && npm install",
+    "build:wasm": "cd dice_lib && RUSTFLAGS='-C target-feature=+atomics,+bulk-memory,+mutable-globals' rustup run nightly-2022-12-12 wasm-pack build --target web --out-dir dist -- . -Z build-std=panic_abort,std --all-features && cd .. && rm node_modules -r && npm install",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
