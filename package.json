@@ -27,7 +27,8 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "build:wasm": "cd dice_lib && RUSTFLAGS='-C target-feature=+atomics,+bulk-memory,+mutable-globals' rustup run nightly-2022-12-12 wasm-pack build --target web --out-dir dist -- . -Z build-std=panic_abort,std --all-features && cd .. && rm node_modules -r && npm install",
+    // "build:wasm": "cd dice_lib && RUSTFLAGS='-C target-feature=+atomics,+bulk-memory,+mutable-globals' rustup run nightly-2022-12-12 wasm-pack build --target web --out-dir dist -- . -Z build-std=panic_abort,std --all-features && cd .. && rm node_modules -r && npm install",
+    "build:wasm": "cd dice_lib && wasm-pack build --target web --out-dir dist && cd .. && rm node_modules -r || true && npm install",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
