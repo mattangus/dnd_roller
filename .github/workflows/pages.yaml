@@ -38,7 +38,7 @@ jobs:
       - name: Setup Rust
         uses: ATiltedTree/setup-rust@v1.0.5
         with:
-            rust-version: nightly-2022-12-12-x86_64-unknown-linux-gnu
+            rust-version: stable
       - name: setup
         run: |
             curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
