@@ -100,7 +100,7 @@ fn offset_transition(ch: char) -> (bool, State) {
 }
 
 
-#[wasm_bindgen]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub fn parse_and_discard(dice_str: String) -> String {
 
     let transitions: HashMap<State, Transition> = HashMap::from([

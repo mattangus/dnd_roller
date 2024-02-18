@@ -155,8 +155,7 @@ function DndRoller(props: {worker: WorkerStuff}) {
       dec.decision_value,
       dice_lib.parse_dice(dec.dice)
     );
-    return dice_lib.run_sim_decision(parsed_decision, 10000000);
-    // return new Promise<Float64Array>(() => dice_lib.run_sim_decision(parsed_decision, 10000000));
+    return new Promise<Float64Array>(() => dice_lib.run_sim_decision(parsed_decision, 10000000));
     // return worker.workerApi.run_sim_decision_wrapper(parsed_decision, 10000000);
   };
 
@@ -201,17 +200,19 @@ function DndRoller(props: {worker: WorkerStuff}) {
               }}>Add set</RBS.Button>
               <RBS.Button onClick={v => {
                 console.time('run sims');
-                if (true) {
-                  const res = decisions.get().map((v) => Array.from((parseAndRun(v))));
-                  hists.set(res);
-                }
-                else {
-                  // const res = Promise.all(decisions.get().map((v) => parseAndRun(v).then((vals) => Array.from(vals))));
-                  // hists.set(res.then((v) => {
-                  //   console.log("setting hists")
-                  //   return v;
-                  // }));
-                }
+                // let histValues: number[][] = [];
+                // for (let i = 0; i < decisions.length; i++) {
+                //   const element = decisions[i].get();
+
+                //   // histValues.push(Array.from(parseAndRun(element)));
+                //   let res = parseAndRun(element).then((vals) => Array.from(vals));
+                // }
+                const res = Promise.all(decisions.get().map((v) => parseAndRun(v).then((vals) => Array.from(vals))));
+                // const res = decisions.map((v) => Array.from(parseAndRun(v.get())));
+                hists.set(res.then((v) => {
+                  console.log("setting hists")
+                  return v;
+                }));
                 console.timeEnd('run sims');
               }}>Run</RBS.Button>
             </RBS.ButtonGroup>
@@ -278,7 +279,8 @@ function App() {
 
   const worker = makeWorkerApiAndCleanup();
 
-  return <DndRoller worker={worker}/>
+  // return <DndRoller worker={worker}/>
+  return <TestPromise />
 }
 
 export default App;

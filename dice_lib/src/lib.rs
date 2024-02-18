@@ -9,7 +9,7 @@ use std::iter;
 use rand::distributions::{Distribution, Uniform};
 
 use wasm_bindgen::prelude::*;
-#[cfg(feature = "web_build")]
+#[cfg(target_arch = "wasm32")]
 pub use wasm_bindgen_rayon::init_thread_pool;
 use rayon::prelude::*;
 mod dice_parser;
@@ -18,7 +18,7 @@ mod dice_parser;
 ////////////////////////////////////////////
 /// Enums
 ////////////////////////////////////////////
-#[cfg_attr(feature = "web_build", wasm_bindgen)]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 #[derive(Clone, PartialEq)]
 pub enum Comparison {
     LessThan,
@@ -81,7 +81,7 @@ impl Comparison {
     }
 }
 
-#[cfg_attr(feature = "web_build", wasm_bindgen)]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub fn do_comparison(op: Comparison, a: usize, b: usize) -> bool {
     // wasm doesn't like function for enums
     return op.compare(a, b);
@@ -90,14 +90,14 @@ pub fn do_comparison(op: Comparison, a: usize, b: usize) -> bool {
 ////////////////////////////////////////////
 /// Structs
 ////////////////////////////////////////////
-#[cfg_attr(feature = "web_build", wasm_bindgen)]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 #[derive(Clone, PartialEq)]
 pub struct Dice {
     sides: usize,
     distribution: Uniform<usize>,
 }
 
-#[cfg_attr(feature = "web_build", wasm_bindgen)]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 #[derive(Clone, PartialEq)]
 pub struct DiceSet {
     dice: Vec<Dice>,
@@ -107,7 +107,7 @@ pub struct DiceSet {
 ////////////////////////////////////////////
 /// Impl
 ////////////////////////////////////////////
-#[cfg_attr(feature = "web_build", wasm_bindgen)]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 #[derive(Clone, PartialEq)]
 pub struct Decision {
     operator: Comparison,
@@ -116,7 +116,7 @@ pub struct Decision {
     dice: DiceSet,
 }
 
-#[cfg_attr(feature = "web_build", wasm_bindgen)]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 #[derive(Clone, PartialEq)]
 pub struct DecisionSet {
     decisions: Vec<Decision>
@@ -134,10 +134,10 @@ impl FromIterator<DiceSet> for DiceSet {
     }
 }
 
-#[cfg_attr(feature = "web_build", wasm_bindgen)]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 impl Dice {
 
-    #[cfg_attr(feature = "web_build", wasm_bindgen(constructor))]
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(constructor))]
     pub fn new(sides: usize) -> Dice {
         let distribution = Uniform::from(1..sides);
         return Dice {
@@ -147,26 +147,26 @@ impl Dice {
     }
 
 
-    #[cfg_attr(feature = "web_build", wasm_bindgen(setter))]
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(setter))]
     pub fn set_sides(&mut self, sides: usize) {
         self.sides = sides;
     }
 
-    #[cfg_attr(feature = "web_build", wasm_bindgen(getter))]
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
     pub fn sides(&self) -> usize {
         return self.sides;
     }
 }
 
-#[cfg_attr(feature = "web_build", wasm_bindgen)]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 impl DiceSet {
 
-    #[cfg_attr(feature = "web_build", wasm_bindgen)]
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
     pub fn empty() -> DiceSet {
         return DiceSet { dice: vec![] };
     }
 
-    #[cfg_attr(feature = "web_build", wasm_bindgen)]
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
     pub fn from_string(text: &str) -> DiceSet {
         let re = Regex::new(r"(?<num_dice>\d+)d(?<num_sides>\d+)()").unwrap();
         let caps = re
@@ -183,23 +183,23 @@ impl DiceSet {
             }
         })
         .collect::<DiceSet>();
-        // #[cfg(feature = "web_build")]
+        // #[cfg(target_arch = "wasm32")]
         // log!("parsed", text.clone(), "into", caps.to_string());
 
         return caps;
     }
 
-    #[cfg_attr(feature = "web_build", wasm_bindgen)]
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
     pub fn to_str(&self) -> String {
         return self.to_string();
     }
     
 }
 
-#[cfg_attr(feature = "web_build", wasm_bindgen)]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 impl Decision {
 
-    #[cfg_attr(feature = "web_build", wasm_bindgen(constructor))]
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(constructor))]
     pub fn new(
         operator: Comparison,
         decision_dice: DiceSet,
@@ -214,49 +214,49 @@ impl Decision {
             }
         }
 
-    #[cfg_attr(feature = "web_build", wasm_bindgen(getter))]
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
     pub fn operator(&self) -> Comparison {
         return self.operator.clone();
     }
-    #[cfg_attr(feature = "web_build", wasm_bindgen(setter))]
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(setter))]
     pub fn set_operator(&mut self, op: Comparison) {
         self.operator = op;
     }
-    #[cfg_attr(feature = "web_build", wasm_bindgen(getter))]
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
     pub fn decision_dice(&self) -> DiceSet{
         return self.decision_dice.clone();
     }
-    #[cfg_attr(feature = "web_build", wasm_bindgen(setter))]
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(setter))]
     pub fn set_decision_dice(&mut self, dice: &DiceSet) {
         self.decision_dice = dice.clone();
     }
-    #[cfg_attr(feature = "web_build", wasm_bindgen(getter))]
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
     pub fn decision_value(&self) -> usize {
         return self.decision_value;
     }
-    #[cfg_attr(feature = "web_build", wasm_bindgen(setter))]
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(setter))]
     pub fn set_decision_value(&mut self, value: usize) {
         self.decision_value = value;
     }
-    #[cfg_attr(feature = "web_build", wasm_bindgen(getter))]
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
     pub fn dice(&self) -> DiceSet {
         return self.dice.clone();
     }
-    #[cfg_attr(feature = "web_build", wasm_bindgen(setter))]
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(setter))]
     pub fn set_dice(&mut self, dice: &DiceSet) {
         self.dice = dice.clone();
     }
     
 }
 
-// #[cfg_attr(feature = "web_build", wasm_bindgen)]
+// #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 // impl DecisionSet {
-//     #[cfg_attr(feature = "web_build", wasm_bindgen(getter))]
+//     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
 //     pub fn decisions(&self) -> Vec<Decision> {
 //         return self.decisions.clone();
 //     }
 
-//     #[cfg_attr(feature = "web_build", wasm_bindgen(setter))]
+//     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(setter))]
 //     pub fn set_decisions(&mut self, decisions: &Vec<Decision>) {
 //         self.decisions = decisions.clone();
 //     }
@@ -277,7 +277,7 @@ impl Rollable for Dice {
         let mut rng: rand::rngs::ThreadRng = rand::thread_rng();
         let sample = self.distribution.sample(&mut rng);
         // if verbose {
-        //     #[cfg(feature = "web_build")]
+        //     #[cfg(target_arch = "wasm32")]
         //     log!(self.to_string(), "rolled a", sample);
         // }
         return sample;
@@ -301,7 +301,7 @@ impl Rollable for DiceSet {
             value += die.roll(verbose);
         }
         // if verbose {
-        //     #[cfg(feature = "web_build")]
+        //     #[cfg(target_arch = "wasm32")]
         //     log!(self.to_string(), "total value", value);
         // }
 
@@ -345,7 +345,7 @@ impl Rollable for Decision {
         let decision_roll = self.decision_dice.roll(verbose);
         let should_roll = self.operator.compare(decision_roll, self.decision_value);
         // if verbose {
-        //     #[cfg(feature = "web_build")]
+        //     #[cfg(target_arch = "wasm32")]
         //     log!(self.to_string(), "should roll dice", should_roll);
         // }
         if  should_roll {
@@ -387,7 +387,7 @@ impl Rollable for DecisionSet {
             value += die.roll(verbose);
         }
         // if verbose {
-        //     #[cfg(feature = "web_build")]
+        //     #[cfg(target_arch = "wasm32")]
         //     log!(self.to_string(), "total value", value);
         // }
 
@@ -431,7 +431,7 @@ pub fn run_sim(dice: &dyn Rollable, iters: i32) -> Vec<f64> {
         max = 1;
     }
     let mut hist = vec![0.0; max];
-    // #[cfg(feature = "web_build")]
+    // #[cfg(target_arch = "wasm32")]
     // log!("rolling", dice.to_string(), "with max", max);
     for _ in 0..iters {
         let roll = dice.roll(false);
@@ -451,27 +451,27 @@ pub fn run_sim(dice: &dyn Rollable, iters: i32) -> Vec<f64> {
 }
 
 pub fn run_sim_parallel(dice: &dyn Rollable, iters: i32) -> Vec<f64> {
-    #[cfg(feature = "web_build")]
+    #[cfg(target_arch = "wasm32")]
     log!("inside run sim");
     let num_threads = rayon::current_num_threads();
-    #[cfg(feature = "web_build")]
+    #[cfg(target_arch = "wasm32")]
     log!("using threadpool size ", num_threads);
     let pool_result = rayon::ThreadPoolBuilder::new().num_threads(num_threads).build();
 
     if pool_result.is_err() {
         let _err = pool_result.err().unwrap();
         
-        #[cfg(feature = "web_build")]
+        #[cfg(target_arch = "wasm32")]
         log!("failed to create thread pool", _err.to_string());
         return vec![];
     }
     let pool = pool_result.unwrap();
 
-    #[cfg(feature = "web_build")]
+    #[cfg(target_arch = "wasm32")]
     log!("got pool");
     let iters_per_thread = iters / (num_threads as i32);
     let result = pool.broadcast(|_| run_sim(dice.clone(), iters_per_thread));
-    #[cfg(feature = "web_build")]
+    #[cfg(target_arch = "wasm32")]
     log!("got results");
     if result.len() == 0 {
         return vec![];
@@ -486,16 +486,24 @@ pub fn run_sim_parallel(dice: &dyn Rollable, iters: i32) -> Vec<f64> {
     return combined;
 }
 
-#[cfg_attr(feature = "web_build", wasm_bindgen)]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub fn run_sim_decision(decision: Decision, iters: i32) -> Vec<f64> {
     // 16025.521
-    #[cfg(feature = "web_build")]
+    #[cfg(target_arch = "wasm32")]
     log!("calling run sim");
-    // return run_sim_parallel(&decision, iters);
     return run_sim(&decision, iters);
 }
 
-#[cfg_attr(feature = "web_build", wasm_bindgen)]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+pub fn run_sim_decision_parallel(decision: Decision, iters: i32) -> Vec<f64> {
+    // 16025.521
+    #[cfg(target_arch = "wasm32")]
+    log!("calling run sim parallel");
+    return run_sim_parallel(&decision, iters);
+    // return run_sim(&decision, iters);
+}
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub fn get_valid_dice(dice: String) -> String {
     // let mut ret = String::new();
     // let mut has_d = false;
@@ -518,7 +526,7 @@ pub fn get_valid_dice(dice: String) -> String {
     return dice;
 }
 
-#[cfg_attr(feature = "web_build", wasm_bindgen)]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub fn parse_dice(value: String) -> DiceSet {
     let re = Regex::new(r"(?<num_dice>\d+)d(?<num_sides>\d+)(?<test>\+\d+){0,1}").unwrap();
     let caps = re
@@ -537,7 +545,7 @@ pub fn parse_dice(value: String) -> DiceSet {
         })
         .collect::<DiceSet>();
     
-    #[cfg(feature = "web_build")]
+    #[cfg(target_arch = "wasm32")]
     log!("parsed", value.clone(), "into", caps.to_string());
 
     return caps;
